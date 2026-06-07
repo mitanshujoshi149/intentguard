@@ -32,7 +32,7 @@ http://54.90.145.193:8000
 
 ## Setup
 ```bash
-git clone https://github.com/joshi_mitanshu/intentguard.git
+git clone https://github.com/mitanshujoshi149/intentguard.git
 cd intentguard
 pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port 8000
