@@ -1,0 +1,23 @@
+{
+  "<PAD>": 0,
+  "<UNK>": 1,
+  "logs:GetLogEvents": 2,
+  "cloudwatch:GetMetricData": 3,
+  "sts:AssumeRole": 4,
+  "s3:DeleteObject": 5,
+  "s3:GetObject": 6,
+  "sts:GetCallerIdentity": 7,
+  "iam:CreateUser": 8,
+  "ec2:DescribeSecurityGroups": 9,
+  "s3:PutObject": 10,
+  "iam:DeleteRole": 11,
+  "lambda:ListFunctions": 12,
+  "rds:DescribeDBInstances": 13,
+  "ec2:DescribeInstances": 14,
+  "iam:ListUsers": 15,
+  "s3:ListBucket": 16,
+  "iam:GetUser": 17,
+  "iam:AttachUserPolicy": 18,
+  "iam:DeleteUser": 19,
+  "iam:PutUserPolicy": 20
+}

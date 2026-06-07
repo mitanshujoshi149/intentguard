@@ -1,0 +1,7 @@
+{
+  "vocab_size": 21,
+  "embed_dim": 64,
+  "hidden_size": 128,
+  "num_layers": 2,
+  "seq_len": 30
+}

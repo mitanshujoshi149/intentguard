@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IntentGuard — SOC Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Bebas+Neue&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#090c10; --surface:#0e1318; --surface2:#141b22; --border:#1e2d3d;
+  --accent:#f97316; --accent2:#fb923c; --green:#22d3a0; --red:#f43f5e;
+  --yellow:#fbbf24; --blue:#38bdf8; --muted:#4a6180; --text:#c8d8e8; --text2:#7a9ab8;
+  --font-mono:'IBM Plex Mono',monospace; --font-display:'Bebas Neue',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:var(--font-mono);height:100vh;overflow:hidden;font-size:13px;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 80%,rgba(249,115,22,0.05) 0%,transparent 50%),radial-gradient(circle at 80% 20%,rgba(34,211,160,0.03) 0%,transparent 50%);pointer-events:none;z-index:0;}
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:var(--surface);}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 24px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#0a0f14,#0d1520);position:relative;z-index:10;flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:30px;height:30px;background:var(--accent);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);animation:pglow 2s ease-in-out infinite;}
+@keyframes pglow{0%,100%{filter:drop-shadow(0 0 4px rgba(249,115,22,0.6))}50%{filter:drop-shadow(0 0 14px rgba(249,115,22,1))}}
+.logo-text{font-family:var(--font-display);font-size:24px;letter-spacing:3px;color:#fff;}
+.logo-text span{color:var(--accent);}
+.logo-sub{font-size:9px;letter-spacing:2px;color:var(--muted);margin-left:4px;}
+.topbar-center{display:flex;gap:2px;}
+.nav-item{padding:5px 14px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text2);cursor:pointer;border:1px solid transparent;transition:all .2s;}
+.nav-item:hover{color:var(--accent);border-color:var(--border);}
+.nav-item.active{color:var(--accent);border-color:var(--border);background:rgba(249,115,22,0.07);}
+.topbar-right{display:flex;align-items:center;gap:16px;}
+.api-chip{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:1px;padding:4px 10px;border:1px solid var(--border);background:var(--surface);}
+.api-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s;}
+.api-chip .dot.on{background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 1.5s step-end infinite;}
+.api-chip .dot.off{background:var(--red);}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.clock{font-size:12px;color:var(--text2);letter-spacing:1px;}
+
+/* LAYOUT */
+.layout{display:grid;grid-template-columns:250px 1fr 290px;height:calc(100vh - 53px);position:relative;z-index:1;}
+
+/* LEFT */
+.sidebar{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.s-section{padding:14px;border-bottom:1px solid var(--border);}
+.s-label{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.s-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.stat-block{background:var(--surface);border:1px solid var(--border);padding:10px 12px;position:relative;overflow:hidden;}
+.stat-block::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;}
+.sb-tot::before{background:var(--blue);}.sb-hi::before{background:var(--red);}.sb-med::before{background:var(--yellow);}.sb-lo::before{background:var(--green);}
+.stat-val{font-family:var(--font-display);font-size:30px;line-height:1;color:#fff;}
+.stat-val.red{color:var(--red);}.stat-val.yellow{color:var(--yellow);}.stat-val.green{color:var(--green);}.stat-val.blue{color:var(--blue);}
+.stat-lbl{font-size:9px;letter-spacing:1.5px;color:var(--text2);margin-top:3px;text-transform:uppercase;}
+.risk-bars{display:flex;flex-direction:column;gap:7px;}
+.rb-row{display:flex;align-items:center;gap:8px;}
+.rb-label{font-size:10px;color:var(--text2);width:52px;}
+.rb-track{flex:1;height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.rb-fill{height:100%;border-radius:2px;transition:width .5s;}
+.rb-val{font-size:10px;width:32px;text-align:right;}
+.preset-btn{display:block;width:100%;text-align:left;padding:6px 10px;margin-bottom:5px;background:var(--surface);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:11px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.preset-btn::before{content:'';position:absolute;top:0;left:0;width:2px;height:100%;}
+.preset-btn.ph::before{background:var(--red);}.preset-btn.pm::before{background:var(--yellow);}.preset-btn.pl::before{background:var(--green);}
+.preset-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(249,115,22,0.05);}
+.preset-badge{float:right;font-size:9px;padding:1px 5px;}
+.ph .preset-badge{background:rgba(244,63,94,.2);color:var(--red);}
+.pm .preset-badge{background:rgba(251,191,36,.15);color:var(--yellow);}
+.pl .preset-badge{background:rgba(34,211,160,.12);color:var(--green);}
+.heatmap-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:2px;}
+.hm-cell{height:11px;border-radius:1px;cursor:default;}
+.hm-hours{display:grid;grid-template-columns:repeat(6,1fr);margin-top:3px;}
+.hm-h{font-size:8px;color:var(--muted);}
+
+/* CENTER TABS */
+.center{display:flex;flex-direction:column;overflow:hidden;}
+.tab-page{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.tab-page.active{display:flex;}
+
+/* LIVE ANALYZER */
+.form-area{padding:14px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.form-title{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.form-grid{display:grid;grid-template-columns:140px 1fr 1fr;gap:8px;margin-bottom:8px;}
+.f-group{display:flex;flex-direction:column;gap:4px;}
+.f-label{font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;}
+.f-input{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:6px 8px;outline:none;transition:border .2s;width:100%;}
+.f-input:focus{border-color:var(--accent);}
+.f-bottom{display:flex;align-items:center;gap:8px;}
+.f-select{background:var(--bg);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:11px;padding:6px 8px;outline:none;cursor:pointer;flex:1;}
+.f-select option{background:var(--surface);}
+.f-btn{background:var(--accent);color:#fff;border:none;font-family:var(--font-display);font-size:17px;letter-spacing:2px;padding:8px 22px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;white-space:nowrap;}
+.f-btn:hover{background:var(--accent2);box-shadow:0 0 20px rgba(249,115,22,.3);}
+.f-btn:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;}
+.result-area{padding:14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.result-placeholder{background:var(--surface);border:1px solid var(--border);padding:20px;text-align:center;color:var(--muted);font-size:12px;}
+.result-card{background:var(--surface);border:1px solid var(--border);padding:14px;display:none;}
+.rc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.rc-user{font-size:11px;color:var(--text2);}
+.rc-user strong{color:var(--blue);}
+.rc-badge{font-family:var(--font-display);font-size:18px;letter-spacing:2px;padding:3px 14px;border:1px solid;}
+.rc-badge.HIGH{color:var(--red);border-color:var(--red);background:rgba(244,63,94,.1);}
+.rc-badge.MEDIUM{color:var(--yellow);border-color:var(--yellow);background:rgba(251,191,36,.1);}
+.rc-badge.LOW{color:var(--green);border-color:var(--green);background:rgba(34,211,160,.1);}
+.score-display{display:flex;align-items:center;gap:14px;margin-bottom:12px;}
+.score-big{font-family:var(--font-display);font-size:48px;line-height:1;}
+.score-meta{display:flex;flex-direction:column;gap:5px;flex:1;}
+.score-bar-wrap{display:flex;align-items:center;gap:8px;}
+.sb-label{font-size:10px;color:var(--text2);width:78px;flex-shrink:0;}
+.sb-track{flex:1;height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.sb-fill{height:100%;border-radius:2px;transition:width .6s ease;}
+.sb-val{font-size:11px;font-weight:500;width:42px;text-align:right;}
+.formula-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);margin-bottom:12px;font-size:11px;flex-wrap:wrap;}
+.formula-part{display:flex;align-items:center;gap:4px;}
+.formula-op{color:var(--muted);font-size:13px;}
+.formula-result{font-family:var(--font-display);font-size:16px;}
+.rules-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px;}
+.rule-tag{font-size:10px;padding:3px 8px;border:1px solid;letter-spacing:.5px;}
+.rule-tag.hot{color:var(--red);border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.08);}
+.rule-tag.mid{color:var(--yellow);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.08);}
+.rule-tag.safe{color:var(--green);border-color:rgba(34,211,160,.3);background:rgba(34,211,160,.06);}
+.chain-title{font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:7px;text-transform:uppercase;}
+.chain-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:0;}
+.chain-node{display:flex;align-items:center;animation:ndin .3s ease both;}
+@keyframes ndin{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+.chain-pill{padding:3px 9px;font-size:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);transition:all .3s;}
+.chain-pill:hover{border-color:var(--accent);color:var(--accent);}
+.chain-pill.danger{border-color:rgba(244,63,94,.5);color:var(--red);background:rgba(244,63,94,.08);}
+.chain-pill.warn{border-color:rgba(251,191,36,.4);color:var(--yellow);background:rgba(251,191,36,.06);}
+.chain-arrow{color:var(--muted);font-size:11px;padding:0 3px;}
+.history-area{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.history-header{display:flex;justify-content:space-between;align-items:center;padding:7px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.history-header span{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.history-scroll{overflow-y:auto;flex:1;}
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;padding:6px 12px;text-align:left;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:2;}
+tbody tr{border-bottom:1px solid rgba(30,45,61,0.5);transition:background .15s;}
+tbody tr:hover{background:rgba(255,255,255,.02);}
+tbody td{padding:6px 12px;font-size:11px;}
+.td-time{color:var(--muted);white-space:nowrap;}
+.td-user{color:var(--blue);}
+.td-events{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.anomaly-y{color:var(--red);font-weight:bold;}
+.anomaly-n{color:var(--muted);}
+.risk-H{color:var(--red);font-weight:bold;}
+.risk-M{color:var(--yellow);font-weight:bold;}
+.risk-L{color:var(--green);}
+
+/* RIGHT PANEL */
+.right{border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.r-section{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.r-label{font-size:9px;letter-spacing:2.5px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.r-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.mi-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(30,45,61,0.4);}
+.mi-key{font-size:10px;color:var(--text2);}
+.mi-val{font-size:10px;color:var(--text);}
+.mi-val.good{color:var(--green);}.mi-val.warn{color:var(--yellow);}
+.gauge-wrap{text-align:center;padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.gauge-lbl{font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:6px;}
+#gauge-num{font-family:var(--font-display);font-size:34px;color:var(--text);}
+#gauge-risk-lbl{font-size:10px;letter-spacing:2px;color:var(--muted);margin-top:1px;}
+.breakdown-area{padding:12px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.bd-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.bd-lbl{font-size:10px;color:var(--text2);width:70px;flex-shrink:0;}
+.bd-track{flex:1;height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.bd-fill{height:100%;border-radius:2px;transition:width .6s ease;}
+.bd-val{font-size:11px;width:42px;text-align:right;}
+.eventlog{flex:1;overflow-y:auto;}
+.log-entry{padding:9px 14px;border-bottom:1px solid rgba(30,45,61,.5);display:flex;gap:9px;}
+.log-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:3px;}
+.log-dot.HIGH{background:var(--red);box-shadow:0 0 5px var(--red);}
+.log-dot.MEDIUM{background:var(--yellow);}
+.log-dot.LOW{background:var(--green);}
+.log-dot.SYS{background:var(--blue);}
+.log-body{flex:1;min-width:0;}
+.log-title{font-size:11px;font-weight:500;}
+.log-title.HIGH{color:var(--red);}.log-title.MEDIUM{color:var(--yellow);}.log-title.LOW{color:var(--green);}.log-title.SYS{color:var(--blue);}
+.log-time{font-size:10px;color:var(--muted);margin:2px 0;}
+.log-detail{font-size:10px;color:var(--text2);line-height:1.5;}
+.watermark{font-size:9px;color:var(--muted);text-align:center;padding:6px;letter-spacing:1px;border-top:1px solid var(--border);}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ====== HISTORY TAB ====== */
+.page-header{padding:14px 18px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;}
+.page-header-title{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--muted);}
+.page-header-sub{font-size:11px;color:var(--text2);margin-top:3px;}
+.hist-toolbar{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap;}
+.hist-filter{background:var(--bg);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:11px;padding:5px 9px;cursor:pointer;outline:none;}
+.hist-filter.active{border-color:var(--accent);color:var(--accent);background:rgba(249,115,22,0.08);}
+.hist-search{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;padding:5px 9px;outline:none;flex:1;min-width:120px;}
+.hist-search:focus{border-color:var(--accent);}
+.hist-stat-bar{display:flex;gap:0;padding:10px 14px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.hst-block{flex:1;text-align:center;border-right:1px solid var(--border);}
+.hst-block:last-child{border-right:none;}
+.hst-val{font-family:var(--font-display);font-size:22px;}
+.hst-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.hist-full-scroll{flex:1;overflow-y:auto;}
+.hist-empty{text-align:center;color:var(--muted);padding:40px;font-size:12px;}
+
+/* ====== MODEL TAB ====== */
+.model-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);flex-shrink:0;}
+.model-card{background:var(--surface);padding:16px 18px;}
+.model-card-title{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.model-kv{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(30,45,61,0.4);}
+.model-kv:last-child{border-bottom:none;}
+.mk-key{font-size:11px;color:var(--text2);}
+.mk-val{font-size:11px;color:var(--text);font-weight:500;}
+.mk-val.good{color:var(--green);}.mk-val.warn{color:var(--yellow);}
+.model-acc-bar{margin-top:12px;}
+.model-bar-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:5px;}
+.model-track{height:8px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.model-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--green),var(--blue));transition:width 1s ease;}
+.model-arch-diagram{padding:16px 18px;border-top:1px solid var(--border);flex-shrink:0;}
+.arch-title{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.arch-layers{display:flex;align-items:center;gap:0;overflow-x:auto;padding-bottom:4px;}
+.arch-layer{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0;}
+.arch-box{background:var(--surface2);border:1px solid var(--border);padding:8px 12px;font-size:10px;text-align:center;min-width:80px;position:relative;}
+.arch-box.ml{border-color:rgba(56,189,248,.4);color:var(--blue);}
+.arch-box.lstm{border-color:rgba(249,115,22,.4);color:var(--accent);}
+.arch-box.rule{border-color:rgba(34,211,160,.4);color:var(--green);}
+.arch-box.out{border-color:rgba(251,191,36,.4);color:var(--yellow);}
+.arch-lbl{font-size:9px;color:var(--muted);letter-spacing:1px;}
+.arch-arrow{color:var(--muted);font-size:18px;padding:0 8px;flex-shrink:0;align-self:center;margin-bottom:18px;}
+.training-section{flex:1;overflow-y:auto;padding:16px 18px;}
+.training-title{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.epoch-chart{width:100%;height:80px;background:var(--surface);border:1px solid var(--border);position:relative;overflow:hidden;}
+.chart-line{position:absolute;bottom:0;left:0;width:100%;height:100%;}
+.metric-pills{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+.metric-pill{padding:5px 10px;border:1px solid;font-size:10px;display:flex;align-items:center;gap:6px;}
+.metric-pill.blue{border-color:rgba(56,189,248,.4);color:var(--blue);}
+.metric-pill.green{border-color:rgba(34,211,160,.4);color:var(--green);}
+.metric-pill.yellow{border-color:rgba(251,191,36,.4);color:var(--yellow);}
+.mp-label{color:var(--muted);font-size:9px;}
+
+/* ====== POLICIES TAB ====== */
+.policies-content{flex:1;overflow-y:auto;padding:0;}
+.policy-item{border-bottom:1px solid var(--border);padding:14px 18px;transition:background .15s;cursor:pointer;}
+.policy-item:hover{background:rgba(255,255,255,.02);}
+.policy-item.expanded{background:var(--surface);}
+.pol-header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.pol-name{font-size:12px;color:var(--text);font-weight:500;}
+.pol-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.pol-badge{font-size:9px;padding:2px 7px;letter-spacing:.5px;border:1px solid;}
+.pol-badge.enabled{color:var(--green);border-color:rgba(34,211,160,.4);background:rgba(34,211,160,.06);}
+.pol-badge.warning{color:var(--yellow);border-color:rgba(251,191,36,.4);background:rgba(251,191,36,.06);}
+.pol-badge.critical{color:var(--red);border-color:rgba(244,63,94,.4);background:rgba(244,63,94,.06);}
+.pol-desc{font-size:10px;color:var(--text2);margin-top:5px;line-height:1.6;}
+.pol-detail{margin-top:12px;display:none;padding-top:12px;border-top:1px solid var(--border);}
+.pol-detail.show{display:block;}
+.pol-rule-list{display:flex;flex-direction:column;gap:5px;}
+.pol-rule{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--text2);padding:4px 8px;background:var(--bg);border:1px solid var(--border);}
+.pol-rule::before{content:'▸';color:var(--accent);font-size:9px;}
+.pol-threshold{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px;}
+.pol-th-item{background:var(--bg);border:1px solid var(--border);padding:8px 10px;}
+.pol-th-key{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px;}
+.pol-th-val{font-size:13px;font-weight:500;}
+.pol-chevron{color:var(--muted);font-size:12px;transition:transform .2s;flex-shrink:0;}
+.pol-chevron.open{transform:rotate(90deg);}
+.pol-actions{display:flex;gap:8px;margin-top:12px;}
+.pol-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:10px;padding:5px 12px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.pol-btn:hover{border-color:var(--accent);color:var(--accent);}
+.pol-btn.danger:hover{border-color:var(--red);color:var(--red);}
+.policies-toolbar{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.pol-stats{display:flex;gap:16px;}
+.pol-stat{font-size:10px;color:var(--text2);}
+.pol-stat span{color:var(--text);font-weight:500;}
+.pol-add-btn{background:rgba(249,115,22,0.1);border:1px solid rgba(249,115,22,0.4);color:var(--accent);font-family:var(--font-mono);font-size:10px;padding:5px 12px;cursor:pointer;letter-spacing:.5px;transition:all .15s;}
+.pol-add-btn:hover{background:rgba(249,115,22,0.2);}
+
+/* page fade-in */
+.tab-page{animation:fadein .2s ease;}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+
+/* ====== MODAL ====== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);width:580px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;animation:modalin .2s ease;}
+@keyframes modalin{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text);}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:18px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.modal-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:11px;padding:6px 16px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.modal-btn:hover{border-color:var(--accent);color:var(--accent);}
+.modal-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.modal-btn.primary:hover{background:var(--accent2);}
+.modal-btn.danger{border-color:rgba(244,63,94,.4);color:var(--red);}
+.modal-btn.danger:hover{background:rgba(244,63,94,.1);}
+.m-field{margin-bottom:14px;}
+.m-label{font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.m-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:7px 10px;outline:none;transition:border .2s;}
+.m-input:focus{border-color:var(--accent);}
+.m-textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none;resize:vertical;min-height:100px;line-height:1.7;transition:border .2s;}
+.m-textarea:focus{border-color:var(--accent);}
+.m-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.test-result{margin-top:14px;padding:12px;background:var(--bg);border:1px solid var(--border);display:none;}
+.test-result.show{display:block;}
+.test-score-big{font-family:var(--font-display);font-size:36px;margin-bottom:6px;}
+.test-bars{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.test-bar-row{display:flex;align-items:center;gap:8px;font-size:10px;}
+.test-bar-lbl{width:70px;color:var(--text2);}
+.test-bar-track{flex:1;height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.test-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.test-bar-val{width:40px;text-align:right;}
+.disabled-overlay{opacity:0.45;pointer-events:none;}
+.pol-badge.disabled{color:var(--muted);border-color:rgba(74,97,128,.4);background:rgba(74,97,128,.06);}
+
+/* ====== MODAL ====== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:1000;display:none;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:var(--surface);border:1px solid var(--border);width:580px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;animation:modalin .2s ease;}
+@keyframes modalin{from{opacity:0;transform:scale(0.96)}to{opacity:1;transform:none}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text);}
+.modal-close{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+.modal-close:hover{color:var(--text);}
+.modal-body{padding:18px;overflow-y:auto;flex:1;}
+.modal-footer{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-shrink:0;}
+.modal-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-family:var(--font-mono);font-size:11px;padding:6px 16px;cursor:pointer;transition:all .15s;letter-spacing:.5px;}
+.modal-btn:hover{border-color:var(--accent);color:var(--accent);}
+.modal-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.modal-btn.primary:hover{background:var(--accent2);}
+.modal-btn.danger{border-color:rgba(244,63,94,.4);color:var(--red);}
+.modal-btn.danger:hover{background:rgba(244,63,94,.1);}
+.m-field{margin-bottom:14px;}
+.m-label{font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.m-input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:12px;padding:7px 10px;outline:none;transition:border .2s;}
+.m-input:focus{border-color:var(--accent);}
+.m-textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font-mono);font-size:11px;padding:7px 10px;outline:none;resize:vertical;min-height:100px;line-height:1.7;transition:border .2s;}
+.m-textarea:focus{border-color:var(--accent);}
+.m-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.test-result{margin-top:14px;padding:12px;background:var(--bg);border:1px solid var(--border);display:none;}
+.test-result.show{display:block;}
+.test-score-big{font-family:var(--font-display);font-size:36px;margin-bottom:6px;}
+.test-bars{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.test-bar-row{display:flex;align-items:center;gap:8px;font-size:10px;}
+.test-bar-lbl{width:70px;color:var(--text2);}
+.test-bar-track{flex:1;height:5px;background:var(--surface2);border-radius:2px;overflow:hidden;}
+.test-bar-fill{height:100%;border-radius:2px;transition:width .5s;}
+.test-bar-val{width:40px;text-align:right;}
+.pol-badge.disabled{color:var(--muted);border-color:rgba(74,97,128,.4);background:rgba(74,97,128,.06);}
+
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <span class="logo-text">INTENT<span>GUARD</span></span>
+    <span class="logo-sub">SOC &middot; INSIDER THREAT</span>
+  </div>
+  <div class="topbar-center">
+    <div class="nav-item active" onclick="switchTab('live')">Live Analyzer</div>
+    <div class="nav-item" onclick="switchTab('history')">History</div>
+    <div class="nav-item" onclick="switchTab('model')">Model</div>
+    <div class="nav-item" onclick="switchTab('policies')">Policies</div>
+  </div>
+  <div class="topbar-right">
+    <div class="api-chip">
+      <div class="dot" id="api-dot"></div>
+      <span id="api-text">Connecting...</span>
+      <span style="color:var(--border)">&nbsp;|&nbsp;</span>
+      <span id="api-url" style="font-size:10px;color:var(--muted)"></span>
+    </div>
+    <span style="color:var(--blue);font-size:11px;">&#9679; LIVE</span>
+    <div class="clock" id="clock"></div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- LEFT SIDEBAR -->
+<div class="sidebar">
+  <div class="s-section">
+    <div class="s-label">Session Stats</div>
+    <div class="stat-grid">
+      <div class="stat-block sb-tot"><div class="stat-val blue" id="s-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-block sb-hi"><div class="stat-val red" id="s-high">0</div><div class="stat-lbl">High Risk</div></div>
+      <div class="stat-block sb-med"><div class="stat-val yellow" id="s-med">0</div><div class="stat-lbl">Medium</div></div>
+      <div class="stat-block sb-lo"><div class="stat-val green" id="s-low">0</div><div class="stat-lbl">Low / Safe</div></div>
+    </div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">Risk Distribution</div>
+    <div class="risk-bars">
+      <div class="rb-row"><div class="rb-label" style="color:var(--red)">HIGH</div><div class="rb-track"><div class="rb-fill" id="rb-h" style="width:0%;background:var(--red)"></div></div><div class="rb-val" id="rp-h" style="color:var(--red)">0%</div></div>
+      <div class="rb-row"><div class="rb-label" style="color:var(--yellow)">MED</div><div class="rb-track"><div class="rb-fill" id="rb-m" style="width:0%;background:var(--yellow)"></div></div><div class="rb-val" id="rp-m" style="color:var(--yellow)">0%</div></div>
+      <div class="rb-row"><div class="rb-label" style="color:var(--green)">LOW</div><div class="rb-track"><div class="rb-fill" id="rb-l" style="width:0%;background:var(--green)"></div></div><div class="rb-val" id="rp-l" style="color:var(--green)">0%</div></div>
+    </div>
+  </div>
+  <div class="s-section">
+    <div class="s-label">Quick Scenarios</div>
+    <button class="preset-btn ph" onclick="applyPreset('high1')">Insider Threat<span class="preset-badge">HIGH</span></button>
+    <button class="preset-btn ph" onclick="applyPreset('high2')">Privilege Escalation<span class="preset-badge">HIGH</span></button>
+    <button class="preset-btn ph" onclick="applyPreset('high3')">Data Exfiltration<span class="preset-badge">HIGH</span></button>
+    <button class="preset-btn pm" onclick="applyPreset('med1')">Suspicious Activity<span class="preset-badge">MED</span></button>
+    <button class="preset-btn pl" onclick="applyPreset('low1')">Benign Developer<span class="preset-badge">LOW</span></button>
+    <button class="preset-btn pl" onclick="applyPreset('low2')">Safe Read-Only<span class="preset-badge">LOW</span></button>
+  </div>
+  <div class="s-section">
+    <div class="s-label">24h Activity</div>
+    <div class="heatmap-grid" id="heatmap"></div>
+    <div class="hm-hours" id="hm-hours"></div>
+  </div>
+</div>
+
+<!-- CENTER MAIN AREA -->
+<div class="center">
+
+  <!-- ===== LIVE ANALYZER TAB ===== -->
+  <div class="tab-page active" id="tab-live">
+    <div class="form-area">
+      <div class="form-title">// Threat Analyzer &mdash; CloudTrail Sequence Input</div>
+      <div class="form-grid">
+        <div class="f-group"><div class="f-label">User / Principal</div><input class="f-input" id="f-user" value="eve" /></div>
+        <div class="f-group"><div class="f-label">Event Sequence (comma-separated)</div><input class="f-input" id="f-events" value="iam:CreateUser,sts:AssumeRole,s3:DeleteObject" /></div>
+        <div class="f-group"><div class="f-label">Error Codes (comma-separated)</div><input class="f-input" id="f-errors" value="AccessDenied,AccessDenied,AccessDenied" /></div>
+      </div>
+      <div class="f-bottom">
+        <select class="f-select" id="f-preset" onchange="applyPresetSel(this.value)">
+          <option value="">&#9660; Load preset scenario</option>
+          <option value="high1">&#9652; Insider Threat (HIGH)</option>
+          <option value="high2">&#9652; Privilege Escalation (HIGH)</option>
+          <option value="high3">&#9652; Data Exfiltration (HIGH)</option>
+          <option value="med1">&#9670; Suspicious Activity (MEDIUM)</option>
+          <option value="low1">&#9654; Benign Developer (LOW)</option>
+          <option value="low2">&#9654; Safe Read-Only (LOW)</option>
+        </select>
+        <button class="f-btn" id="run-btn" onclick="runPrediction()">&#9658; ANALYZE THREAT</button>
+      </div>
+    </div>
+
+    <div class="result-area">
+      <div class="result-placeholder" id="rp">&#8593; Configure event sequence above and click ANALYZE THREAT to run LSTM inference</div>
+      <div class="result-card" id="rc">
+        <div class="rc-top">
+          <div>
+            <div class="rc-user">Principal: <strong id="rc-user"></strong></div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px;" id="rc-time"></div>
+          </div>
+          <div id="rc-badge" class="rc-badge">---</div>
+        </div>
+        <div class="score-display">
+          <div>
+            <div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:2px;">FINAL SCORE</div>
+            <div class="score-big" id="rc-score">0.000</div>
+          </div>
+          <div class="score-meta">
+            <div class="score-bar-wrap"><div class="sb-label">LSTM&nbsp;(ML)</div><div class="sb-track"><div class="sb-fill" id="bar-ml" style="width:0%;background:var(--blue)"></div></div><div class="sb-val" id="val-ml" style="color:var(--blue)">0.000</div></div>
+            <div class="score-bar-wrap"><div class="sb-label">Rule Engine</div><div class="sb-track"><div class="sb-fill" id="bar-rule" style="width:0%;background:var(--accent)"></div></div><div class="sb-val" id="val-rule" style="color:var(--accent)">0.000</div></div>
+            <div class="score-bar-wrap"><div class="sb-label">Blended</div><div class="sb-track"><div class="sb-fill" id="bar-final" style="width:0%"></div></div><div class="sb-val" id="val-final">0.000</div></div>
+          </div>
+        </div>
+        <div class="formula-row">
+          <span style="font-size:9px;letter-spacing:1.5px;color:var(--muted)">HYBRID&nbsp;=</span>
+          <div class="formula-part"><span style="color:var(--blue)">0.6</span><span class="formula-op">&times;</span><span id="f-ml" style="color:var(--blue);font-weight:600">0.000</span><span style="font-size:9px;color:var(--muted)">&nbsp;(ML)</span></div>
+          <span class="formula-op">+</span>
+          <div class="formula-part"><span style="color:var(--accent)">0.4</span><span class="formula-op">&times;</span><span id="f-rule" style="color:var(--accent);font-weight:600">0.000</span><span style="font-size:9px;color:var(--muted)">&nbsp;(Rules)</span></div>
+          <span class="formula-op">=</span>
+          <span class="formula-result" id="f-final">0.000</span>
+        </div>
+        <div style="font-size:9px;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;">Triggered Rules</div>
+        <div class="rules-wrap" id="rules-wrap"></div>
+        <div class="chain-title">&#9658; Attack Chain Visualization</div>
+        <div class="chain-wrap" id="chain-wrap"></div>
+      </div>
+    </div>
+
+    <div class="history-area">
+      <div class="history-header">
+        <span>// Request History</span>
+        <span id="hist-count" style="font-size:10px;color:var(--muted)">0 requests</span>
+      </div>
+      <div class="history-scroll">
+        <table>
+          <thead><tr><th>Time</th><th>User</th><th>Events</th><th>Score</th><th>Anomaly</th><th>Risk</th></tr></thead>
+          <tbody id="hist-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HISTORY TAB ===== -->
+  <div class="tab-page" id="tab-history">
+    <div class="page-header">
+      <div>
+        <div class="page-header-title">// Full Session History</div>
+        <div class="page-header-sub" id="hist-page-sub">No requests yet this session</div>
+      </div>
+      <button class="pol-btn" onclick="exportCSV()" style="font-size:10px;padding:5px 12px;">&#8595; Export CSV</button>
+    </div>
+    <div class="hist-stat-bar">
+      <div class="hst-block"><div class="hst-val blue" id="hs-total">0</div><div class="hst-lbl">Total</div></div>
+      <div class="hst-block"><div class="hst-val" style="color:var(--red)" id="hs-high">0</div><div class="hst-lbl">High</div></div>
+      <div class="hst-block"><div class="hst-val" style="color:var(--yellow)" id="hs-med">0</div><div class="hst-lbl">Medium</div></div>
+      <div class="hst-block"><div class="hst-val" style="color:var(--green)" id="hs-low">0</div><div class="hst-lbl">Low / Safe</div></div>
+      <div class="hst-block"><div class="hst-val" style="color:var(--accent)" id="hs-avg">—</div><div class="hst-lbl">Avg Score</div></div>
+    </div>
+    <div class="hist-toolbar">
+      <button class="hist-filter active" onclick="filterHist('all',this)">All</button>
+      <button class="hist-filter" onclick="filterHist('HIGH',this)">High Risk</button>
+      <button class="hist-filter" onclick="filterHist('MEDIUM',this)">Medium</button>
+      <button class="hist-filter" onclick="filterHist('LOW',this)">Low / Safe</button>
+      <input class="hist-search" id="hist-search" placeholder="Search by user or event..." oninput="renderHistPage()">
+    </div>
+    <div class="hist-full-scroll">
+      <table id="hist-full-table">
+        <thead><tr><th>#</th><th>Time</th><th>User</th><th>Events</th><th>ML Score</th><th>Rule Score</th><th>Final Score</th><th>Anomaly</th><th>Risk</th></tr></thead>
+        <tbody id="hist-full-body"></tbody>
+      </table>
+      <div class="hist-empty" id="hist-empty">No requests yet. Run an analysis from the Live Analyzer tab.</div>
+    </div>
+  </div>
+
+  <!-- ===== MODEL TAB ===== -->
+  <div class="tab-page" id="tab-model">
+    <div class="page-header">
+      <div>
+        <div class="page-header-title">// Model Intelligence</div>
+        <div class="page-header-sub" id="model-status-line">Loading model info from API...</div>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="pol-btn" onclick="loadModelInfo()">&#8635; Refresh</button>
+      </div>
+    </div>
+    <div class="model-grid">
+      <div class="model-card">
+        <div class="model-card-title">Architecture</div>
+        <div class="model-kv"><span class="mk-key">Model Name</span><span class="mk-val" id="mm-model">Loading...</span></div>
+        <div class="model-kv"><span class="mk-key">Architecture</span><span class="mk-val" id="mm-arch">—</span></div>
+        <div class="model-kv"><span class="mk-key">Num Layers</span><span class="mk-val" id="mm-layers">—</span></div>
+        <div class="model-kv"><span class="mk-key">Hidden Size</span><span class="mk-val" id="mm-hidden">—</span></div>
+        <div class="model-kv"><span class="mk-key">Embed Dim</span><span class="mk-val" id="mm-embed">—</span></div>
+        <div class="model-kv"><span class="mk-key">Vocab Size</span><span class="mk-val" id="mm-vocab">—</span></div>
+        <div class="model-kv"><span class="mk-key">Seq Length</span><span class="mk-val" id="mm-seq">—</span></div>
+      </div>
+      <div class="model-card">
+        <div class="model-card-title">Training &amp; Performance</div>
+        <div class="model-kv"><span class="mk-key">Training Samples</span><span class="mk-val" id="mm-samples">—</span></div>
+        <div class="model-kv"><span class="mk-key">Val Accuracy</span><span class="mk-val good" id="mm-acc">—</span></div>
+        <div class="model-kv"><span class="mk-key">ML Available</span><span class="mk-val good" id="mm-avail">—</span></div>
+        <div class="model-kv"><span class="mk-key">ML Weight</span><span class="mk-val" id="mm-mlw">—</span></div>
+        <div class="model-kv"><span class="mk-key">Rule Weight</span><span class="mk-val" id="mm-rw">—</span></div>
+        <div class="model-acc-bar">
+          <div class="model-bar-lbl"><span>Validation Accuracy</span><span id="mm-acc-pct">—</span></div>
+          <div class="model-track"><div class="model-fill" id="mm-acc-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="model-arch-diagram">
+      <div class="arch-title">// Model Architecture Flow</div>
+      <div class="arch-layers">
+        <div class="arch-layer"><div class="arch-box ml">Input<br><span style="font-size:9px;color:var(--muted)">CloudTrail Events</span></div><div class="arch-lbl">INPUT</div></div>
+        <div class="arch-arrow">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box lstm">Embedding<br><span style="font-size:9px;color:var(--muted)">dim=64</span></div><div class="arch-lbl">EMBED</div></div>
+        <div class="arch-arrow">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box lstm">LSTM Layer 1<br><span style="font-size:9px;color:var(--muted)">hidden=128</span></div><div class="arch-lbl">LSTM-1</div></div>
+        <div class="arch-arrow">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box lstm">LSTM Layer 2<br><span style="font-size:9px;color:var(--muted)">hidden=128</span></div><div class="arch-lbl">LSTM-2</div></div>
+        <div class="arch-arrow">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box ml">FC + Sigmoid<br><span style="font-size:9px;color:var(--muted)">ML Score</span></div><div class="arch-lbl">ML OUT</div></div>
+        <div class="arch-arrow" style="color:var(--green)">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box rule">Rule Engine<br><span style="font-size:9px;color:var(--muted)">Heuristics</span></div><div class="arch-lbl">RULES</div></div>
+        <div class="arch-arrow" style="color:var(--yellow)">&#8594;</div>
+        <div class="arch-layer"><div class="arch-box out">Hybrid Blend<br><span style="font-size:9px;color:var(--muted)">0.6×ML + 0.4×Rule</span></div><div class="arch-lbl">OUTPUT</div></div>
+      </div>
+    </div>
+    <div class="training-section">
+      <div class="training-title">// Training Metrics (Epoch Curve)</div>
+      <div class="epoch-chart">
+        <svg class="chart-line" id="epoch-svg" viewBox="0 0 400 80" preserveAspectRatio="none"></svg>
+      </div>
+      <div class="metric-pills">
+        <div class="metric-pill blue"><span class="mp-label">FINAL LOSS</span><span id="mp-loss">0.0206</span></div>
+        <div class="metric-pill green"><span class="mp-label">VAL ACC</span><span id="mp-acc">96.5%</span></div>
+        <div class="metric-pill yellow"><span class="mp-label">EPOCHS</span><span id="mp-epochs">20</span></div>
+        <div class="metric-pill blue"><span class="mp-label">TRAINING SAMPLES</span><span id="mp-samples">1000</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== POLICIES TAB ===== -->
+  <div class="tab-page" id="tab-policies">
+    <div class="page-header">
+      <div>
+        <div class="page-header-title">// Detection Policies</div>
+        <div class="page-header-sub">Configure threat detection rules, thresholds, and automated responses</div>
+      </div>
+    </div>
+    <div class="policies-toolbar">
+      <div class="pol-stats">
+        <div class="pol-stat"><span>6</span> policies active</div>
+        <div class="pol-stat"><span>18</span> rules total</div>
+        <div class="pol-stat">Last updated: <span>today</span></div>
+      </div>
+      <button class="pol-add-btn" onclick="openNewPolicy()">+ New Policy</button>
+    </div>
+    <div class="policies-content">
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Insider Threat Detection</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge critical">CRITICAL</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">4 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Detects suspicious sequences typical of malicious insiders: user creation followed by privilege escalation and data access.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">iam:CreateUser followed by iam:AttachUserPolicy within 60s → score +0.4</div>
+            <div class="pol-rule">sts:AssumeRole after CreateUser in same session → HIGH flag</div>
+            <div class="pol-rule">3+ AccessDenied errors in sequence → score +0.3</div>
+            <div class="pol-rule">iam:DeleteUser after data access events → CRITICAL alert</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Alert Threshold</div><div class="pol-th-val" style="color:var(--red)">0.70</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Auto-Block</div><div class="pol-th-val" style="color:var(--yellow)">0.90</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">ML Weight</div><div class="pol-th-val" style="color:var(--blue)">0.60</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Privilege Escalation Monitor</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge critical">CRITICAL</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">3 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Monitors IAM policy attachment and role assumption patterns that indicate unauthorized privilege escalation attempts.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">iam:PutUserPolicy or iam:AttachUserPolicy from non-admin role → score +0.5</div>
+            <div class="pol-rule">sts:AssumeRole cross-account → HIGH flag</div>
+            <div class="pol-rule">iam:CreateAccessKey after privilege change → CRITICAL</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Alert Threshold</div><div class="pol-th-val" style="color:var(--red)">0.65</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Auto-Block</div><div class="pol-th-val" style="color:var(--yellow)">0.85</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">ML Weight</div><div class="pol-th-val" style="color:var(--blue)">0.60</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Data Exfiltration Detection</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge critical">CRITICAL</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">4 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Detects mass S3 download patterns, unusual cross-region access, and bulk object enumeration indicating data theft.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">5+ s3:GetObject in sequence → score +0.35</div>
+            <div class="pol-rule">10+ s3:GetObject in single session → HIGH flag</div>
+            <div class="pol-rule">s3:GetObject from non-home region → score +0.2</div>
+            <div class="pol-rule">s3:DeleteObject after s3:GetObject bulk → CRITICAL</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Alert Threshold</div><div class="pol-th-val" style="color:var(--red)">0.60</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Bulk Limit</div><div class="pol-th-val" style="color:var(--yellow)">10 ops</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Window</div><div class="pol-th-val" style="color:var(--blue)">5 min</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Anomalous Access Hours</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge warning">MEDIUM</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">2 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Flags access during off-hours (22:00–06:00 local time) or weekends, especially for sensitive operations.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">Any IAM or STS operation between 22:00–06:00 → score +0.2</div>
+            <div class="pol-rule">Any destructive action (Delete, Terminate) on weekend → score +0.3</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Off-Hours Start</div><div class="pol-th-val" style="color:var(--yellow)">22:00</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Off-Hours End</div><div class="pol-th-val" style="color:var(--yellow)">06:00</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Score Boost</div><div class="pol-th-val" style="color:var(--blue)">+0.20</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Repeated Access Denied Monitoring</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge warning">MEDIUM</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">3 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Tracks repeated permission failures as indicators of credential scanning, policy probing, or lateral movement attempts.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">2 AccessDenied in sequence → score +0.15</div>
+            <div class="pol-rule">3+ AccessDenied in sequence → score +0.3</div>
+            <div class="pol-rule">AccessDenied on iam:* → score +0.25 (permission probing)</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Trigger Count</div><div class="pol-th-val" style="color:var(--yellow)">3</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Score Delta</div><div class="pol-th-val" style="color:var(--blue)">+0.30</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Window</div><div class="pol-th-val" style="color:var(--blue)">60s</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="policy-item" onclick="togglePolicy(this)">
+        <div class="pol-header">
+          <div>
+            <div class="pol-name">Infrastructure Destruction Guard</div>
+            <div class="pol-meta" style="margin-top:5px;">
+              <span class="pol-badge critical">CRITICAL</span>
+              <span class="pol-badge enabled">ENABLED</span>
+              <span style="font-size:9px;color:var(--muted)">2 rules</span>
+            </div>
+          </div>
+          <span class="pol-chevron">&#9658;</span>
+        </div>
+        <div class="pol-desc">Detects destructive API calls that could result in resource deletion, termination, or service disruption.</div>
+        <div class="pol-detail">
+          <div class="pol-rule-list">
+            <div class="pol-rule">ec2:TerminateInstances → score +0.6, immediate HIGH flag</div>
+            <div class="pol-rule">s3:DeleteBucket → score +0.7, immediate CRITICAL alert</div>
+          </div>
+          <div class="pol-threshold">
+            <div class="pol-th-item"><div class="pol-th-key">Alert Threshold</div><div class="pol-th-val" style="color:var(--red)">0.50</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Auto-Block</div><div class="pol-th-val" style="color:var(--yellow)">0.70</div></div>
+            <div class="pol-th-item"><div class="pol-th-key">Notify SOC</div><div class="pol-th-val" style="color:var(--green)">YES</div></div>
+          </div>
+          <div class="pol-actions">
+            <button class="pol-btn">Edit Rules</button>
+            <button class="pol-btn">Test Policy</button>
+            <button class="pol-btn danger">Disable</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /center -->
+
+<!-- RIGHT PANEL -->
+<div class="right">
+  <div class="r-section">
+    <div class="r-label">Model Intelligence</div>
+    <div class="mi-row"><span class="mi-key">model</span><span class="mi-val" id="mi-model">Loading...</span></div>
+    <div class="mi-row"><span class="mi-key">architecture</span><span class="mi-val" id="mi-arch">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">vocab_size</span><span class="mi-val" id="mi-vocab">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">embed_dim</span><span class="mi-val" id="mi-embed">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">hidden_size</span><span class="mi-val" id="mi-hidden">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">num_layers</span><span class="mi-val" id="mi-layers">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">seq_len</span><span class="mi-val" id="mi-seq">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">ml_weight</span><span class="mi-val" id="mi-mlw">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">rule_weight</span><span class="mi-val" id="mi-rw">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">training_samples</span><span class="mi-val" id="mi-samples">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">val_accuracy</span><span class="mi-val good" id="mi-acc">&mdash;</span></div>
+    <div class="mi-row"><span class="mi-key">ml_available</span><span class="mi-val good" id="mi-avail">&mdash;</span></div>
+  </div>
+  <div class="gauge-wrap">
+    <div class="gauge-lbl">// Session Threat Level</div>
+    <svg width="200" height="110" viewBox="0 0 200 110">
+      <defs>
+        <linearGradient id="gg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#22d3a0"/>
+          <stop offset="50%" style="stop-color:#fbbf24"/>
+          <stop offset="100%" style="stop-color:#f43f5e"/>
+        </linearGradient>
+      </defs>
+      <path d="M25,100 A75,75 0 0,1 175,100" fill="none" stroke="#1e2d3d" stroke-width="12" stroke-linecap="round"/>
+      <path id="gauge-arc" d="M25,100 A75,75 0 0,1 175,100" fill="none" stroke="url(#gg)" stroke-width="12" stroke-linecap="round" stroke-dasharray="236" stroke-dashoffset="236" style="transition:stroke-dashoffset .8s ease"/>
+    </svg>
+    <div id="gauge-num">0</div>
+    <div id="gauge-risk-lbl">SAFE</div>
+  </div>
+  <div class="breakdown-area">
+    <div class="r-label">Score Breakdown</div>
+    <div class="bd-row"><div class="bd-lbl" style="color:var(--blue)">ML (LSTM)</div><div class="bd-track"><div class="bd-fill" id="bd-ml" style="width:0%;background:var(--blue)"></div></div><div class="bd-val" id="bd-ml-v" style="color:var(--blue)">0.000</div></div>
+    <div class="bd-row"><div class="bd-lbl" style="color:var(--accent)">Rule Engine</div><div class="bd-track"><div class="bd-fill" id="bd-rule" style="width:0%;background:var(--accent)"></div></div><div class="bd-val" id="bd-rule-v" style="color:var(--accent)">0.000</div></div>
+    <div class="bd-row"><div class="bd-lbl" style="color:var(--text)">Blended</div><div class="bd-track"><div class="bd-fill" id="bd-final" style="width:0%;background:var(--green)"></div></div><div class="bd-val" id="bd-final-v">0.000</div></div>
+  </div>
+  <div style="padding:10px 14px 4px;border-bottom:1px solid var(--border);flex-shrink:0;"><div class="r-label">Event Feed</div></div>
+  <div class="eventlog" id="eventlog">
+    <div class="log-entry">
+      <div class="log-dot SYS"></div>
+      <div class="log-body">
+        <div class="log-title SYS">System Online</div>
+        <div class="log-time" id="start-time"></div>
+        <div class="log-detail">IntentGuard SOC dashboard initialized. Awaiting threat analysis.</div>
+      </div>
+    </div>
+  </div>
+  <div class="watermark">IntentGuard v1.0 &mdash; LSTM + Rule Engine &mdash; 98% Val Acc</div>
+</div>
+
+</div><!-- /layout -->
+
+<script>
+const API = '';
+let counts = {total:0,HIGH:0,MEDIUM:0,LOW:0};
+let sessionScores = [];
+let historyRecords = []; // {time,user,events,mlScore,ruleScore,finalScore,level}
+let histFilter = 'all';
+
+const DANGEROUS = new Set(['iam:CreateUser','iam:AttachUserPolicy','iam:PutUserPolicy','iam:DeleteUser','iam:DeleteRole','sts:AssumeRole','s3:DeleteObject','s3:DeleteBucket','ec2:TerminateInstances','iam:CreateAccessKey']);
+const CAUTION   = new Set(['s3:GetObject','iam:GetUser','iam:ListUsers','ec2:DescribeInstances','sts:GetCallerIdentity']);
+
+const PRESETS = {
+  high1:{user:'eve',      events:'iam:CreateUser,iam:AttachUserPolicy,sts:AssumeRole,s3:DeleteObject,iam:DeleteUser', errors:'AccessDenied,AccessDenied,AccessDenied,None,None'},
+  high2:{user:'attacker', events:'iam:CreateUser,iam:PutUserPolicy,sts:AssumeRole,ec2:TerminateInstances',           errors:'None,None,None,None'},
+  high3:{user:'mallory',  events:'s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject', errors:'None,None,None,None,None,None,None,None,None,None,None,None'},
+  med1: {user:'charlie',  events:'s3:GetObject,s3:GetObject,sts:AssumeRole,ec2:DescribeInstances',                   errors:'None,None,AccessDenied,None'},
+  low1: {user:'alice',    events:'ec2:DescribeInstances,s3:GetObject,s3:PutObject,logs:GetLogEvents',                errors:'None,None,None,None'},
+  low2: {user:'bob',      events:'s3:GetObject,s3:GetObject,cloudwatch:GetMetricData',                               errors:'None,None,None'},
+};
+
+function applyPreset(k){ const p=PRESETS[k]; if(!p)return; document.getElementById('f-user').value=p.user; document.getElementById('f-events').value=p.events; document.getElementById('f-errors').value=p.errors; switchTab('live'); }
+function applyPresetSel(v){ if(v)applyPreset(v); setTimeout(()=>{document.getElementById('f-preset').value='';},80); }
+
+// ---- TAB SWITCHING ----
+function switchTab(name){
+  document.querySelectorAll('.tab-page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  const idx = {live:0,history:1,model:2,policies:3}[name];
+  document.querySelectorAll('.nav-item')[idx].classList.add('active');
+  if(name==='history'){
+    fetch('/history').then(r=>r.json()).then(d=>{
+      const recs = d.history||[];
+      // Merge backend records into historyRecords (avoid duplicates by time+user)
+      const existing = new Set(historyRecords.map(r=>r.time+'|'+r.user));
+      recs.forEach(rec=>{
+        const key = (rec.time||'')+'|'+(rec.user||'');
+        if(!existing.has(key)){
+          existing.add(key);
+          historyRecords.push({
+            time: rec.time||'',
+            user: rec.user||'',
+            events: rec.events||[],
+            mlScore: parseFloat(rec.ml_score||rec.mlScore||0),
+            ruleScore: parseFloat(rec.rule_score||rec.ruleScore||0),
+            finalScore: parseFloat(rec.final_score||rec.finalScore||0),
+            level: rec.risk_level||rec.level||'LOW',
+            rules: rec.triggered_rules||rec.rules||[]
+          });
+        }
+      });
+      // Also restore stats
+      fetch('/stats').then(r=>r.json()).then(s=>{
+        counts.total=s.total||historyRecords.length;
+        counts.HIGH=s.HIGH||historyRecords.filter(r=>r.level==='HIGH').length;
+        counts.MEDIUM=s.MEDIUM||historyRecords.filter(r=>r.level==='MEDIUM').length;
+        counts.LOW=s.LOW||historyRecords.filter(r=>r.level==='LOW').length;
+        document.getElementById('s-total').textContent=counts.total;
+        document.getElementById('s-high').textContent=counts.HIGH;
+        document.getElementById('s-med').textContent=counts.MEDIUM;
+        document.getElementById('s-low').textContent=counts.LOW;
+        updateDistBars();
+        if(s.scores&&s.scores.length){sessionScores=s.scores.slice();updateGauge(s.scores.reduce((a,b)=>a+b,0)/s.scores.length);}
+      }).catch(()=>{});
+    }).catch(()=>{}).finally(()=>renderHistPage());
+  }
+  if(name==='model') renderModelPage();
+}
+
+// ---- CLOCK ----
+function tick(){ const n=new Date(); document.getElementById('clock').textContent=String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0')+':'+String(n.getSeconds()).padStart(2,'0')+' IST'; }
+setInterval(tick,1000); tick();
+document.getElementById('start-time').textContent = new Date().toLocaleTimeString('en-IN',{hour12:false});
+document.getElementById('api-url').textContent = API.replace('http://','');
+
+// ---- HEALTH CHECK ----
+async function checkHealth(){
+  const dot=document.getElementById('api-dot'), txt=document.getElementById('api-text');
+  try{
+    const r=await fetch(API+'/health',{signal:AbortSignal.timeout(4000)});
+    if(r.ok){ dot.className='dot on'; txt.textContent='\u2713 API ONLINE'; txt.style.color='var(--green)'; }
+    else throw 0;
+  }catch{ dot.className='dot off'; txt.textContent='\u2717 API OFFLINE'; txt.style.color='var(--red)'; }
+}
+checkHealth(); setInterval(checkHealth,10000);
+
+// ---- MODEL INFO (shared between right panel + model tab) ----
+let cachedModelInfo = null;
+async function loadModelInfo(){
+  try{
+    const d=await (await fetch(API+'/model/info')).json();
+    cachedModelInfo = d;
+    // Right panel
+    document.getElementById('mi-model').textContent  = '"'+(d.model||'IntentLSTM')+'"';
+    document.getElementById('mi-arch').textContent   = '"'+(d.architecture||'2-layer LSTM')+'"';
+    document.getElementById('mi-vocab').textContent  = d.vocab_size||'21';
+    document.getElementById('mi-embed').textContent  = d.embed_dim||'64';
+    document.getElementById('mi-hidden').textContent = d.hidden_size||'128';
+    document.getElementById('mi-layers').textContent = d.num_layers||'2';
+    document.getElementById('mi-seq').textContent    = d.seq_len||'30';
+    document.getElementById('mi-mlw').textContent    = d.ml_weight||'0.6';
+    document.getElementById('mi-rw').textContent     = d.rule_weight||'0.4';
+    document.getElementById('mi-samples').textContent= d.training_samples||'1000';
+    document.getElementById('mi-acc').textContent    = '"'+(d.val_accuracy||'98%')+'"';
+    const av=document.getElementById('mi-avail');
+    av.textContent=d.ml_available?'true':'false';
+    av.className=d.ml_available?'mi-val good':'mi-val warn';
+    renderModelPage();
+  }catch{}
+}
+loadModelInfo(); setInterval(loadModelInfo,30000);
+
+function renderModelPage(){
+  const d = cachedModelInfo || {};
+  document.getElementById('mm-model').textContent  = '"'+(d.model||'IntentLSTM')+'"';
+  document.getElementById('mm-arch').textContent   = '"'+(d.architecture||'2-layer LSTM')+'"';
+  document.getElementById('mm-layers').textContent = d.num_layers||'2';
+  document.getElementById('mm-hidden').textContent = d.hidden_size||'128';
+  document.getElementById('mm-embed').textContent  = d.embed_dim||'64';
+  document.getElementById('mm-vocab').textContent  = d.vocab_size||'21';
+  document.getElementById('mm-seq').textContent    = d.seq_len||'30';
+  document.getElementById('mm-samples').textContent= d.training_samples||'1000';
+  const accStr = d.val_accuracy||'96.5%';
+  document.getElementById('mm-acc').textContent    = accStr;
+  document.getElementById('mm-acc-pct').textContent= accStr;
+  const accNum = parseFloat(accStr)||96.5;
+  document.getElementById('mm-acc-bar').style.width = accNum+'%';
+  document.getElementById('mm-mlw').textContent    = d.ml_weight||'0.6';
+  document.getElementById('mm-rw').textContent     = d.rule_weight||'0.4';
+  const av2=document.getElementById('mm-avail');
+  av2.textContent=d.ml_available!==false?'true':'false';
+  av2.className=d.ml_available!==false?'mk-val good':'mk-val warn';
+  const sl = document.getElementById('model-status-line');
+  sl.textContent = 'Model loaded · val_accuracy='+accStr+' · '+((d.training_samples)||1000)+' training samples';
+  document.getElementById('mp-acc').textContent = accStr;
+  document.getElementById('mp-samples').textContent = d.training_samples||'1000';
+  drawEpochChart();
+}
+
+function drawEpochChart(){
+  const svg = document.getElementById('epoch-svg');
+  if(!svg) return;
+  const losses = [0.6842,0.5124,0.4201,0.3418,0.2876,0.2341,0.1942,0.1631,0.1382,0.1184,0.1014,0.0882,0.0769,0.0671,0.0587,0.0512,0.0448,0.0376,0.0224,0.0206];
+  const accs   = [0.52,0.61,0.68,0.74,0.78,0.82,0.85,0.87,0.89,0.91,0.92,0.925,0.93,0.94,0.945,0.950,0.955,0.960,0.960,0.965];
+  const W=400, H=80, n=losses.length;
+  const lossPath = losses.map((v,i)=>{
+    const x=(i/(n-1))*W; const y=H-(v/0.7)*H*0.85-4;
+    return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  const accPath = accs.map((v,i)=>{
+    const x=(i/(n-1))*W; const y=H-v*H*0.85-4;
+    return (i===0?'M':'L')+x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  svg.innerHTML=`
+    <path d="${lossPath}" fill="none" stroke="#38bdf8" stroke-width="1.5" opacity="0.9"/>
+    <path d="${accPath}" fill="none" stroke="#22d3a0" stroke-width="1.5" opacity="0.9"/>
+    <text x="4" y="12" fill="#38bdf8" font-size="8" font-family="IBM Plex Mono">Loss</text>
+    <text x="36" y="12" fill="#22d3a0" font-size="8" font-family="IBM Plex Mono">Val Acc</text>
+  `;
+}
+
+// ---- GAUGE ----
+function updateGauge(score){
+  const pct=Math.min(Math.max(score,0),1);
+  document.getElementById('gauge-arc').style.strokeDashoffset = 236 - pct*236;
+  let color,label;
+  if(pct>=0.7){color='#f43f5e';label='CRITICAL';}
+  else if(pct>=0.4){color='#fbbf24';label='ELEVATED';}
+  else{color='#22d3a0';label='SAFE';}
+  document.getElementById('gauge-num').textContent=Math.round(pct*100);
+  document.getElementById('gauge-num').style.color=color;
+  document.getElementById('gauge-risk-lbl').textContent=label;
+  document.getElementById('gauge-risk-lbl').style.color=color;
+}
+
+function scoreColor(s){ return s>=0.7?'var(--red)':s>=0.4?'var(--yellow)':'var(--green)'; }
+
+function updateDistBars(){
+  const tot=counts.total||1;
+  const hp=Math.round(counts.HIGH/tot*100), mp=Math.round(counts.MEDIUM/tot*100), lp=Math.round(counts.LOW/tot*100);
+  document.getElementById('rb-h').style.width=hp+'%'; document.getElementById('rp-h').textContent=hp+'%';
+  document.getElementById('rb-m').style.width=mp+'%'; document.getElementById('rp-m').textContent=mp+'%';
+  document.getElementById('rb-l').style.width=lp+'%'; document.getElementById('rp-l').textContent=lp+'%';
+}
+
+function renderChain(events){
+  const wrap=document.getElementById('chain-wrap'); wrap.innerHTML='';
+  events.forEach((ev,i)=>{
+    const node=document.createElement('div'); node.className='chain-node'; node.style.animationDelay=(i*0.07)+'s';
+    const pill=document.createElement('div');
+    pill.className='chain-pill'+(DANGEROUS.has(ev)?' danger':CAUTION.has(ev)?' warn':'');
+    pill.textContent=ev; node.appendChild(pill);
+    if(i<events.length-1){ const arr=document.createElement('div'); arr.className='chain-arrow'; arr.innerHTML='&#8594;'; node.appendChild(arr); }
+    wrap.appendChild(node);
+  });
+}
+
+// ---- PREDICTION ----
+async function runPrediction(){
+  const user  = document.getElementById('f-user').value.trim();
+  const events= document.getElementById('f-events').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const errors= document.getElementById('f-errors').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!user||!events.length){alert('Please enter User ID and at least one event.');return;}
+  const btn=document.getElementById('run-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>&nbsp;ANALYZING...';
+  try{
+    const res=await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,events,error_codes:errors.length?errors:null})});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    renderResult(await res.json(), events);
+  }catch(e){ alert('Error: '+e.message+'\n\nMake sure the EC2 server is running.'); }
+  finally{ btn.disabled=false; btn.innerHTML='&#9658; ANALYZE THREAT'; }
+}
+
+function renderResult(data, events){
+  const ml=parseFloat(data.ml_score||0), rule=parseFloat(data.rule_score||0), final=parseFloat(data.final_score||0);
+  const level=data.risk_level||'LOW', user=data.user, rules=data.triggered_rules||[];
+  const now=new Date().toLocaleTimeString('en-IN',{hour12:false});
+  const sc=scoreColor(final);
+
+  counts.total++; counts[level]=(counts[level]||0)+1;
+  document.getElementById('s-total').textContent=counts.total;
+  document.getElementById('s-high').textContent=counts.HIGH||0;
+  document.getElementById('s-med').textContent=counts.MEDIUM||0;
+  document.getElementById('s-low').textContent=counts.LOW||0;
+  updateDistBars();
+
+  // Store record for History tab
+  historyRecords.unshift({time:now, user, events, mlScore:ml, ruleScore:rule, finalScore:final, level, rules});
+  // Save to backend
+  fetch('/history',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({time:now,user:user,events:events,ml_score:ml,rule_score:rule,
+      final_score:final,risk_level:level,mlScore:ml,ruleScore:rule,finalScore:final,
+      anomaly:(level==='HIGH'||level==='MEDIUM'),triggered_rules:rules||[]})
+  }).catch(()=>{});
+  fetch('/stats',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({risk_level:level,final_score:final})
+  }).catch(()=>{});
+
+  document.getElementById('rp').style.display='none';
+  document.getElementById('rc').style.display='block';
+  document.getElementById('rc-user').textContent=user;
+  document.getElementById('rc-time').textContent=now+' IST \u00b7 '+events.length+' events analyzed';
+  const badge=document.getElementById('rc-badge'); badge.textContent=level; badge.className='rc-badge '+level;
+  const sb=document.getElementById('rc-score'); sb.textContent=final.toFixed(3); sb.style.color=sc;
+  document.getElementById('bar-ml').style.width=(ml*100)+'%';
+  document.getElementById('bar-rule').style.width=(rule*100)+'%';
+  document.getElementById('bar-final').style.width=(final*100)+'%';
+  document.getElementById('bar-final').style.background=sc;
+  document.getElementById('val-ml').textContent=ml.toFixed(3);
+  document.getElementById('val-rule').textContent=rule.toFixed(3);
+  document.getElementById('val-final').textContent=final.toFixed(3); document.getElementById('val-final').style.color=sc;
+  document.getElementById('f-ml').textContent=ml.toFixed(3);
+  document.getElementById('f-rule').textContent=rule.toFixed(3);
+  const ff=document.getElementById('f-final'); ff.textContent=final.toFixed(3); ff.style.color=sc;
+  document.getElementById('bd-ml').style.width=(ml*100)+'%'; document.getElementById('bd-ml-v').textContent=ml.toFixed(3);
+  document.getElementById('bd-rule').style.width=(rule*100)+'%'; document.getElementById('bd-rule-v').textContent=rule.toFixed(3);
+  document.getElementById('bd-final').style.width=(final*100)+'%'; document.getElementById('bd-final').style.background=sc;
+  document.getElementById('bd-final-v').textContent=final.toFixed(3); document.getElementById('bd-final-v').style.color=sc;
+  const rw=document.getElementById('rules-wrap'); rw.innerHTML='';
+  if(!rules.length){ rw.innerHTML='<span class="rule-tag safe">\u2713 no rules triggered</span>'; }
+  else{ rules.forEach(r=>{ const t=document.createElement('span'); t.className='rule-tag '+(level==='HIGH'?'hot':level==='MEDIUM'?'mid':'safe'); t.textContent='\u26a0 '+r; rw.appendChild(t); }); }
+  renderChain(events);
+  sessionScores.push(final);
+  updateGauge(sessionScores.reduce((a,b)=>a+b,0)/sessionScores.length);
+  const anomaly=(level==='HIGH'||level==='MEDIUM');
+  const tbody=document.getElementById('hist-body');
+  const tr=document.createElement('tr');
+  tr.innerHTML=`<td class="td-time">${now}</td><td class="td-user">${user}</td><td class="td-events" title="${events.join(', ')}">${events.slice(0,3).join(', ')}${events.length>3?' +'+(events.length-3)+' more':''}</td><td style="color:${sc};font-weight:500">${final.toFixed(3)}</td><td class="${anomaly?'anomaly-y':'anomaly-n'}">${anomaly?'YES':'NO'}</td><td class="risk-${level[0]}">${level}</td>`;
+  tbody.insertBefore(tr,tbody.firstChild);
+  document.getElementById('hist-count').textContent=counts.total+' request'+(counts.total!==1?'s':'');
+  const logEl=document.getElementById('eventlog');
+  const entry=document.createElement('div'); entry.className='log-entry';
+  entry.innerHTML=`<div class="log-dot ${level}"></div><div class="log-body"><div class="log-title ${level}">${level} RISK &middot; ${user}</div><div class="log-time">${now} &middot; score ${final.toFixed(3)}</div><div class="log-detail">${rules.length?rules.join(', '):'No rules triggered &middot; ML-driven detection'}</div></div>`;
+  logEl.insertBefore(entry,logEl.firstChild);
+}
+
+// ---- HISTORY TAB ----
+function filterHist(f, btn){
+  histFilter = f;
+  document.querySelectorAll('.hist-filter').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  renderHistPage();
+}
+
+function renderHistPage(){
+  const search = (document.getElementById('hist-search')?.value||'').toLowerCase();
+  let records = historyRecords;
+  if(histFilter !== 'all') records = records.filter(r=>r.level===histFilter);
+  if(search) records = records.filter(r=> r.user.toLowerCase().includes(search) || r.events.join(',').toLowerCase().includes(search));
+
+  const empty = document.getElementById('hist-empty');
+  const tbody = document.getElementById('hist-full-body');
+  tbody.innerHTML = '';
+
+  if(records.length === 0){
+    empty.style.display = 'block';
+    empty.textContent = historyRecords.length === 0
+      ? 'No requests yet. Run an analysis from the Live Analyzer tab.'
+      : 'No records match the current filter.';
+  } else {
+    empty.style.display = 'none';
+    records.forEach((r, i)=>{
+      const sc = scoreColor(r.finalScore);
+      const anomaly = (r.level==='HIGH'||r.level==='MEDIUM');
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td class="td-time">${historyRecords.length-historyRecords.indexOf(r)}</td>
+        <td class="td-time">${r.time}</td>
+        <td class="td-user">${r.user}</td>
+        <td class="td-events" title="${r.events.join(', ')}">${r.events.slice(0,3).join(', ')}${r.events.length>3?' +'+(r.events.length-3)+' more':''}</td>
+        <td style="color:var(--blue)">${r.mlScore.toFixed(3)}</td>
+        <td style="color:var(--accent)">${r.ruleScore.toFixed(3)}</td>
+        <td style="color:${sc};font-weight:500">${r.finalScore.toFixed(3)}</td>
+        <td class="${anomaly?'anomaly-y':'anomaly-n'}">${anomaly?'YES':'NO'}</td>
+        <td class="risk-${r.level[0]}">${r.level}</td>`;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Update summary stats
+  const tot = historyRecords.length;
+  document.getElementById('hs-total').textContent = tot;
+  document.getElementById('hs-high').textContent  = counts.HIGH||0;
+  document.getElementById('hs-med').textContent   = counts.MEDIUM||0;
+  document.getElementById('hs-low').textContent   = counts.LOW||0;
+  const avg = tot ? (sessionScores.reduce((a,b)=>a+b,0)/tot).toFixed(3) : '—';
+  document.getElementById('hs-avg').textContent   = avg;
+  document.getElementById('hist-page-sub').textContent = tot
+    ? `${tot} total request${tot!==1?'s':''} this session · avg score ${avg}`
+    : 'No requests yet this session';
+}
+
+function exportCSV(){
+  if(!historyRecords.length){ alert('No data to export yet.'); return; }
+  let csv='#,Time,User,Events,ML Score,Rule Score,Final Score,Anomaly,Risk\n';
+  historyRecords.forEach((r,i)=>{
+    const anomaly=(r.level==='HIGH'||r.level==='MEDIUM')?'YES':'NO';
+    csv+=[historyRecords.length-i, r.time, r.user, '"'+r.events.join('|')+'"', r.mlScore.toFixed(3), r.ruleScore.toFixed(3), r.finalScore.toFixed(3), anomaly, r.level].join(',')+'\n';
+  });
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='intentguard-session-'+new Date().toISOString().slice(0,10)+'.csv';
+  a.click();
+}
+
+// ---- POLICIES TAB ----
+function togglePolicy(item){
+  const detail = item.querySelector('.pol-detail');
+  const chevron = item.querySelector('.pol-chevron');
+  const isOpen = detail.classList.contains('show');
+  // Close all
+  document.querySelectorAll('.pol-detail').forEach(d=>d.classList.remove('show'));
+  document.querySelectorAll('.pol-chevron').forEach(c=>c.classList.remove('open'));
+  document.querySelectorAll('.policy-item').forEach(p=>p.classList.remove('expanded'));
+  if(!isOpen){
+    detail.classList.add('show');
+    chevron.classList.add('open');
+    item.classList.add('expanded');
+  }
+}
+
+// ---- HEATMAP ----
+(function(){
+  const hm=document.getElementById('heatmap'), hl=document.getElementById('hm-hours');
+  const data=[0.05,0.03,0.02,0.01,0.08,0.2,0.4,0.6,0.75,0.65,0.85,0.9,0.8,0.88,0.95,0.82,0.7,0.55,0.4,0.3,0.5,0.6,0.45,0.25];
+  data.forEach((v,i)=>{
+    const cell=document.createElement('div'); cell.className='hm-cell';
+    const r=v>0.6?244:v>0.3?251:34, g=v>0.6?63:v>0.3?191:211, b=v>0.6?94:v>0.3?36:160;
+    cell.style.background=`rgba(${r},${g},${b},${0.15+v*0.7})`;
+    cell.title=`${String(i).padStart(2,'0')}:00 — Risk ${(v*100).toFixed(0)}%`;
+    hm.appendChild(cell);
+  });
+  [0,4,8,12,16,20].forEach(h=>{
+    const s=document.createElement('div'); s.className='hm-h';
+    s.textContent=String(h).padStart(2,'0')+'h'; hl.appendChild(s);
+  });
+})();
+
+// ---- POLICY STATE ----
+const policyState = {};
+document.querySelectorAll('.policy-item').forEach((item, idx) => {
+  const nameEl = item.querySelector('.pol-name');
+  const name = nameEl ? nameEl.textContent.trim() : 'Policy '+(idx+1);
+  const rulesEls = item.querySelectorAll('.pol-rule');
+  const rules = Array.from(rulesEls).map(r => r.textContent.trim());
+  const threshEls = item.querySelectorAll('.pol-th-val');
+  const descEl = item.querySelector('.pol-desc');
+  policyState[idx] = {
+    name, rules,
+    desc: descEl ? descEl.textContent.trim() : '',
+    threshold: threshEls[0] ? threshEls[0].textContent.trim() : '0.70',
+    autoblock:  threshEls[1] ? threshEls[1].textContent.trim() : '0.90',
+    enabled: true, el: item,
+  };
+});
+
+let activeEditIdx = null;
+let activeToggleIdx = null;
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target === o) o.classList.remove('open'); });
+});
+
+function openEditPolicy(idx, e){
+  e.stopPropagation(); activeEditIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('edit-modal-title').textContent = 'Edit Policy — ' + p.name;
+  document.getElementById('edit-name').value = p.name;
+  document.getElementById('edit-threshold').value = parseFloat(p.threshold)||0.70;
+  document.getElementById('edit-autoblock').value = parseFloat(p.autoblock)||0.90;
+  document.getElementById('edit-rules').value = p.rules.join('\n');
+  document.getElementById('edit-desc').value = p.desc;
+  openModal('modal-edit');
+}
+
+function savePolicy(){
+  if(activeEditIdx === null) return;
+  const p = policyState[activeEditIdx];
+  p.name = document.getElementById('edit-name').value.trim() || p.name;
+  p.threshold = document.getElementById('edit-threshold').value;
+  p.autoblock = document.getElementById('edit-autoblock').value;
+  p.rules = document.getElementById('edit-rules').value.trim().split('\n').filter(Boolean);
+  p.desc = document.getElementById('edit-desc').value.trim();
+  const item = p.el;
+  const nameEl = item.querySelector('.pol-name'); if(nameEl) nameEl.textContent = p.name;
+  const descEl = item.querySelector('.pol-desc'); if(descEl) descEl.textContent = p.desc;
+  const threshEls = item.querySelectorAll('.pol-th-val');
+  if(threshEls[0]) threshEls[0].textContent = parseFloat(p.threshold).toFixed(2);
+  if(threshEls[1]) threshEls[1].textContent = parseFloat(p.autoblock).toFixed(2);
+  const ruleList = item.querySelector('.pol-rule-list');
+  if(ruleList){ ruleList.innerHTML = ''; p.rules.forEach(r => { const d=document.createElement('div'); d.className='pol-rule'; d.textContent=r; ruleList.appendChild(d); }); }
+  closeModal('modal-edit');
+  showToast('Policy saved: ' + p.name);
+}
+
+function openTestPolicy(idx, e){
+  e.stopPropagation(); activeEditIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('test-modal-title').textContent = 'Test Policy — ' + p.name;
+  document.getElementById('test-result').classList.remove('show');
+  const name = p.name.toLowerCase();
+  if(name.includes('insider')){ document.getElementById('test-events').value='iam:CreateUser,iam:AttachUserPolicy,sts:AssumeRole,s3:DeleteObject'; document.getElementById('test-errors').value='AccessDenied,AccessDenied,AccessDenied,None'; }
+  else if(name.includes('privilege')){ document.getElementById('test-events').value='iam:CreateUser,iam:PutUserPolicy,sts:AssumeRole,ec2:TerminateInstances'; document.getElementById('test-errors').value='None,None,None,None'; }
+  else if(name.includes('exfil')){ document.getElementById('test-events').value='s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject'; document.getElementById('test-errors').value='None,None,None,None,None,None,None,None,None,None,None,None'; }
+  else if(name.includes('denied')){ document.getElementById('test-events').value='s3:GetObject,iam:ListUsers,iam:GetUser'; document.getElementById('test-errors').value='AccessDenied,AccessDenied,AccessDenied'; }
+  else if(name.includes('infra')||name.includes('destruct')){ document.getElementById('test-events').value='ec2:TerminateInstances,s3:DeleteBucket'; document.getElementById('test-errors').value='None,None'; }
+  else { document.getElementById('test-events').value='ec2:DescribeInstances,s3:GetObject'; document.getElementById('test-errors').value='None,None'; }
+  openModal('modal-test');
+}
+
+async function runPolicyTest(){
+  const user = document.getElementById('test-user').value.trim()||'test-user';
+  const events = document.getElementById('test-events').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const errors = document.getElementById('test-errors').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!events.length){ alert('Enter at least one event.'); return; }
+  const btn = document.getElementById('test-run-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>&nbsp;Testing...';
+  try {
+    const res = await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,events,error_codes:errors.length?errors:null})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const ml=parseFloat(data.ml_score||0), rule=parseFloat(data.rule_score||0), final=parseFloat(data.final_score||0);
+    const level=data.risk_level||'LOW', sc=scoreColor(final), rules=data.triggered_rules||[];
+    document.getElementById('test-result').classList.add('show');
+    const sv=document.getElementById('test-score-val'); sv.textContent=final.toFixed(3); sv.style.color=sc;
+    const badge=document.getElementById('test-badge'); badge.textContent=level; badge.className='rc-badge '+level;
+    document.getElementById('t-bar-ml').style.width=(ml*100)+'%'; document.getElementById('t-val-ml').textContent=ml.toFixed(3);
+    document.getElementById('t-bar-rule').style.width=(rule*100)+'%'; document.getElementById('t-val-rule').textContent=rule.toFixed(3);
+    document.getElementById('t-bar-final').style.width=(final*100)+'%'; document.getElementById('t-bar-final').style.background=sc;
+    document.getElementById('t-val-final').textContent=final.toFixed(3); document.getElementById('t-val-final').style.color=sc;
+    document.getElementById('test-rules-out').innerHTML = rules.length
+      ? '<span style="color:var(--red)">\u26a0 Rules: </span>'+rules.join(' · ')
+      : '<span style="color:var(--green)">✓ No rules triggered · ML-driven</span>';
+  } catch(e){ alert('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.innerHTML='&#9658; Run Test'; }
+}
+
+function openDisablePolicy(idx, e){
+  e.stopPropagation(); activeToggleIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('disable-msg').textContent = (p.enabled?'Disable':'Enable')+' policy: "'+p.name+'"?';
+  openModal('modal-disable');
+}
+
+function confirmToggle(){
+  if(activeToggleIdx===null) return;
+  const p = policyState[activeToggleIdx];
+  p.enabled = !p.enabled;
+  const item = p.el;
+  item.querySelectorAll('.pol-badge').forEach(b => {
+    if(b.textContent==='ENABLED'||b.textContent==='DISABLED'){
+      b.textContent = p.enabled?'ENABLED':'DISABLED';
+      b.className = 'pol-badge '+(p.enabled?'enabled':'disabled');
+    }
+  });
+  const toggleBtn = item.querySelector('.pol-btn.danger, .pol-btn.enable-btn');
+  if(toggleBtn){
+    toggleBtn.textContent = p.enabled?'Disable':'Enable';
+    toggleBtn.className = p.enabled?'pol-btn danger':'pol-btn enable-btn';
+    toggleBtn.onclick = (e) => { e.stopPropagation(); openDisablePolicy(activeToggleIdx, e); };
+  }
+  const desc=item.querySelector('.pol-desc'); if(desc) desc.style.opacity=p.enabled?'1':'0.4';
+  const rl=item.querySelector('.pol-rule-list'); if(rl) rl.style.opacity=p.enabled?'1':'0.4';
+  const ac=Object.values(policyState).filter(x=>x.enabled).length;
+  const ce=document.querySelector('.pol-stat span'); if(ce) ce.textContent=ac;
+  closeModal('modal-disable');
+  showToast('Policy "'+ p.name +'" '+(p.enabled?'enabled':'disabled')+'.');
+}
+
+document.querySelectorAll('.policy-item').forEach((item, idx) => {
+  item.querySelectorAll('.pol-btn').forEach(btn => {
+    const txt = btn.textContent.trim();
+    if(txt==='Edit Rules') btn.onclick=(e)=>{e.stopPropagation();openEditPolicy(idx,e);};
+    else if(txt==='Test Policy') btn.onclick=(e)=>{e.stopPropagation();openTestPolicy(idx,e);};
+    else if(txt==='Disable') btn.onclick=(e)=>{e.stopPropagation();openDisablePolicy(idx,e);};
+  });
+});
+
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);font-family:var(--font-mono);font-size:11px;padding:10px 18px;z-index:9999;letter-spacing:.5px;opacity:0;transition:opacity .3s;pointer-events:none;'; document.body.appendChild(t); }
+  t.textContent='✓ '+msg; t.style.opacity='1';
+  clearTimeout(t._timer); t._timer=setTimeout(()=>{t.style.opacity='0';},3000);
+}
+
+</script>
+
+<!-- New Policy Modal -->
+<div class="modal-overlay" id="modal-new">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">// Create New Policy</span>
+      <button class="modal-close" onclick="closeModal('modal-new')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field">
+        <div class="m-label">Policy Name</div>
+        <input class="m-input" id="new-name" type="text" placeholder="e.g. Lateral Movement Detection">
+      </div>
+      <div class="m-field">
+        <div class="m-label">Severity</div>
+        <select class="m-input" id="new-severity" style="cursor:pointer;">
+          <option value="critical">CRITICAL</option>
+          <option value="warning">MEDIUM</option>
+          <option value="enabled">LOW</option>
+        </select>
+      </div>
+      <div class="m-row">
+        <div class="m-field">
+          <div class="m-label">Alert Threshold (0.0 – 1.0)</div>
+          <input class="m-input" id="new-threshold" type="number" min="0" max="1" step="0.05" value="0.70">
+        </div>
+        <div class="m-field">
+          <div class="m-label">Auto-Block Threshold</div>
+          <input class="m-input" id="new-autoblock" type="number" min="0" max="1" step="0.05" value="0.90">
+        </div>
+      </div>
+      <div class="m-field">
+        <div class="m-label">Rules (one per line)</div>
+        <textarea class="m-textarea" id="new-rules" rows="5" placeholder="e.g. iam:CreateUser followed by sts:AssumeRole → score +0.4&#10;3+ AccessDenied errors → HIGH flag"></textarea>
+      </div>
+      <div class="m-field">
+        <div class="m-label">Description</div>
+        <textarea class="m-textarea" id="new-desc" rows="2" placeholder="Describe what this policy detects..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-new')">Cancel</button>
+      <button class="modal-btn primary" onclick="createNewPolicy()">Create Policy</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+function openNewPolicy(){
+  // clear fields
+  document.getElementById('new-name').value = '';
+  document.getElementById('new-severity').value = 'critical';
+  document.getElementById('new-threshold').value = '0.70';
+  document.getElementById('new-autoblock').value = '0.90';
+  document.getElementById('new-rules').value = '';
+  document.getElementById('new-desc').value = '';
+  openModal('modal-new');
+}
+
+function createNewPolicy(){
+  const name = document.getElementById('new-name').value.trim();
+  if(!name){ alert('Policy name is required.'); return; }
+
+  const severity  = document.getElementById('new-severity').value;
+  const threshold = document.getElementById('new-threshold').value;
+  const autoblock = document.getElementById('new-autoblock').value;
+  const rulesRaw  = document.getElementById('new-rules').value.trim();
+  const desc      = document.getElementById('new-desc').value.trim();
+  const rules     = rulesRaw ? rulesRaw.split('\n').filter(Boolean) : ['No rules defined yet'];
+
+  const severityLabel = {critical:'CRITICAL', warning:'MEDIUM', enabled:'LOW'}[severity];
+  const idx = Object.keys(policyState).length;
+
+  // Build the HTML for the new policy item
+  const rulesHTML = rules.map(r => `<div class="pol-rule">${r}</div>`).join('');
+  const item = document.createElement('div');
+  item.className = 'policy-item';
+  item.innerHTML = `
+    <div class="pol-header">
+      <div>
+        <div class="pol-name">${name}</div>
+        <div class="pol-meta" style="margin-top:5px;">
+          <span class="pol-badge ${severity}">${severityLabel}</span>
+          <span class="pol-badge enabled">ENABLED</span>
+          <span style="font-size:9px;color:var(--muted)">${rules.length} rules</span>
+        </div>
+      </div>
+      <span class="pol-chevron">&#9658;</span>
+    </div>
+    <div class="pol-desc">${desc || 'Custom policy.'}</div>
+    <div class="pol-detail">
+      <div class="pol-rule-list">${rulesHTML}</div>
+      <div class="pol-threshold">
+        <div class="pol-th-item"><div class="pol-th-key">Alert Threshold</div><div class="pol-th-val" style="color:var(--red)">${parseFloat(threshold).toFixed(2)}</div></div>
+        <div class="pol-th-item"><div class="pol-th-key">Auto-Block</div><div class="pol-th-val" style="color:var(--yellow)">${parseFloat(autoblock).toFixed(2)}</div></div>
+        <div class="pol-th-item"><div class="pol-th-key">ML Weight</div><div class="pol-th-val" style="color:var(--blue)">0.60</div></div>
+      </div>
+      <div class="pol-actions">
+        <button class="pol-btn">Edit Rules</button>
+        <button class="pol-btn">Test Policy</button>
+        <button class="pol-btn danger">Disable</button>
+      </div>
+    </div>
+  `;
+
+  // Add toggle expand on click
+  item.addEventListener('click', () => togglePolicy(item));
+
+  // Add to DOM
+  document.querySelector('.policies-content').appendChild(item);
+
+  // Register in policyState
+  policyState[idx] = { name, rules, desc: desc||'Custom policy.', threshold, autoblock, enabled: true, el: item };
+
+  // Wire up buttons
+  item.querySelectorAll('.pol-btn').forEach(btn => {
+    const txt = btn.textContent.trim();
+    if(txt === 'Edit Rules')   btn.onclick = (e) => { e.stopPropagation(); openEditPolicy(idx, e); };
+    if(txt === 'Test Policy')  btn.onclick = (e) => { e.stopPropagation(); openTestPolicy(idx, e); };
+    if(txt === 'Disable')      btn.onclick = (e) => { e.stopPropagation(); openDisablePolicy(idx, e); };
+  });
+
+  // Update toolbar counts
+  const totalPolicies = Object.keys(policyState).length;
+  const totalRules = Object.values(policyState).reduce((a,p)=>a+p.rules.length,0);
+  const statEls = document.querySelectorAll('.pol-stat span');
+  if(statEls[0]) statEls[0].textContent = totalPolicies;
+  if(statEls[1]) statEls[1].textContent = totalRules;
+
+  closeModal('modal-new');
+  showToast('Policy "' + name + '" created successfully.');
+}
+
+
+// Fix: wire up modal-new close-on-backdrop after DOM ready
+document.addEventListener("DOMContentLoaded", function(){
+  document.querySelectorAll(".modal-overlay").forEach(o => {
+    if(!o._wired){ o._wired=true; o.addEventListener("click", e => { if(e.target===o) o.classList.remove("open"); }); }
+  });
+});
+
+</script>
+
+<!-- ===== MODALS ===== -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="edit-modal-title">Edit Policy Rules</span>
+      <button class="modal-close" onclick="closeModal('modal-edit')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field"><div class="m-label">Policy Name</div><input class="m-input" id="edit-name" type="text"></div>
+      <div class="m-row">
+        <div class="m-field"><div class="m-label">Alert Threshold (0.0 - 1.0)</div><input class="m-input" id="edit-threshold" type="number" min="0" max="1" step="0.05"></div>
+        <div class="m-field"><div class="m-label">Auto-Block Threshold</div><input class="m-input" id="edit-autoblock" type="number" min="0" max="1" step="0.05"></div>
+      </div>
+      <div class="m-field"><div class="m-label">Rules (one per line)</div><textarea class="m-textarea" id="edit-rules" rows="6"></textarea></div>
+      <div class="m-field"><div class="m-label">Description</div><textarea class="m-textarea" id="edit-desc" rows="3"></textarea></div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-edit')">Cancel</button>
+      <button class="modal-btn primary" onclick="savePolicy()">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-test">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="test-modal-title">Test Policy</span>
+      <button class="modal-close" onclick="closeModal('modal-test')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="m-field"><div class="m-label">User / Principal</div><input class="m-input" id="test-user" type="text" value="test-user"></div>
+      <div class="m-field"><div class="m-label">Event Sequence (comma-separated)</div><input class="m-input" id="test-events" type="text" placeholder="e.g. iam:CreateUser,sts:AssumeRole"></div>
+      <div class="m-field"><div class="m-label">Error Codes (comma-separated, optional)</div><input class="m-input" id="test-errors" type="text" placeholder="e.g. AccessDenied,None,None"></div>
+      <div class="test-result" id="test-result">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <div><div style="font-size:9px;color:var(--muted);letter-spacing:1px;margin-bottom:2px;">FINAL SCORE</div><div class="test-score-big" id="test-score-val">0.000</div></div>
+          <div id="test-badge" class="rc-badge">---</div>
+        </div>
+        <div class="test-bars">
+          <div class="test-bar-row"><span class="test-bar-lbl" style="color:var(--blue)">ML (LSTM)</span><div class="test-bar-track"><div class="test-bar-fill" id="t-bar-ml" style="width:0%;background:var(--blue)"></div></div><span class="test-bar-val" id="t-val-ml" style="color:var(--blue)">0.000</span></div>
+          <div class="test-bar-row"><span class="test-bar-lbl" style="color:var(--accent)">Rule Engine</span><div class="test-bar-track"><div class="test-bar-fill" id="t-bar-rule" style="width:0%;background:var(--accent)"></div></div><span class="test-bar-val" id="t-val-rule" style="color:var(--accent)">0.000</span></div>
+          <div class="test-bar-row"><span class="test-bar-lbl">Blended</span><div class="test-bar-track"><div class="test-bar-fill" id="t-bar-final" style="width:0%"></div></div><span class="test-bar-val" id="t-val-final">0.000</span></div>
+        </div>
+        <div style="margin-top:10px;font-size:10px;color:var(--text2)" id="test-rules-out"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-test')">Close</button>
+      <button class="modal-btn primary" id="test-run-btn" onclick="runPolicyTest()">&#9658; Run Test</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-disable">
+  <div class="modal" style="width:420px;">
+    <div class="modal-header">
+      <span class="modal-title">Confirm Action</span>
+      <button class="modal-close" onclick="closeModal('modal-disable')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:12px;color:var(--text);margin-bottom:8px;" id="disable-msg">Are you sure?</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.7;">This policy will stop evaluating events. You can re-enable it at any time by clicking Enable.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn" onclick="closeModal('modal-disable')">Cancel</button>
+      <button class="modal-btn danger" onclick="confirmToggle()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ---- POLICY STATE ----
+const policyState = {};
+document.querySelectorAll('.policy-item').forEach((item, idx) => {
+  const nameEl = item.querySelector('.pol-name');
+  const name = nameEl ? nameEl.textContent.trim() : 'Policy '+(idx+1);
+  const rulesEls = item.querySelectorAll('.pol-rule');
+  const rules = Array.from(rulesEls).map(r => r.textContent.trim());
+  const threshEls = item.querySelectorAll('.pol-th-val');
+  const descEl = item.querySelector('.pol-desc');
+  policyState[idx] = {
+    name, rules,
+    desc: descEl ? descEl.textContent.trim() : '',
+    threshold: threshEls[0] ? threshEls[0].textContent.trim() : '0.70',
+    autoblock:  threshEls[1] ? threshEls[1].textContent.trim() : '0.90',
+    enabled: true, el: item,
+  };
+});
+
+let activeEditIdx = null;
+let activeToggleIdx = null;
+
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o => {
+  o.addEventListener('click', e => { if(e.target === o) o.classList.remove('open'); });
+});
+
+function openEditPolicy(idx, e){
+  e.stopPropagation(); activeEditIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('edit-modal-title').textContent = 'Edit Policy — ' + p.name;
+  document.getElementById('edit-name').value = p.name;
+  document.getElementById('edit-threshold').value = parseFloat(p.threshold)||0.70;
+  document.getElementById('edit-autoblock').value = parseFloat(p.autoblock)||0.90;
+  document.getElementById('edit-rules').value = p.rules.join('\n');
+  document.getElementById('edit-desc').value = p.desc;
+  openModal('modal-edit');
+}
+
+function savePolicy(){
+  if(activeEditIdx === null) return;
+  const p = policyState[activeEditIdx];
+  p.name = document.getElementById('edit-name').value.trim() || p.name;
+  p.threshold = document.getElementById('edit-threshold').value;
+  p.autoblock = document.getElementById('edit-autoblock').value;
+  p.rules = document.getElementById('edit-rules').value.trim().split('\n').filter(Boolean);
+  p.desc = document.getElementById('edit-desc').value.trim();
+  const item = p.el;
+  const nameEl = item.querySelector('.pol-name'); if(nameEl) nameEl.textContent = p.name;
+  const descEl = item.querySelector('.pol-desc'); if(descEl) descEl.textContent = p.desc;
+  const threshEls = item.querySelectorAll('.pol-th-val');
+  if(threshEls[0]) threshEls[0].textContent = parseFloat(p.threshold).toFixed(2);
+  if(threshEls[1]) threshEls[1].textContent = parseFloat(p.autoblock).toFixed(2);
+  const ruleList = item.querySelector('.pol-rule-list');
+  if(ruleList){ ruleList.innerHTML = ''; p.rules.forEach(r => { const d=document.createElement('div'); d.className='pol-rule'; d.textContent=r; ruleList.appendChild(d); }); }
+  closeModal('modal-edit');
+  showToast('Policy saved: ' + p.name);
+}
+
+function openTestPolicy(idx, e){
+  e.stopPropagation(); activeEditIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('test-modal-title').textContent = 'Test Policy — ' + p.name;
+  document.getElementById('test-result').classList.remove('show');
+  const name = p.name.toLowerCase();
+  if(name.includes('insider')){ document.getElementById('test-events').value='iam:CreateUser,iam:AttachUserPolicy,sts:AssumeRole,s3:DeleteObject'; document.getElementById('test-errors').value='AccessDenied,AccessDenied,AccessDenied,None'; }
+  else if(name.includes('privilege')){ document.getElementById('test-events').value='iam:CreateUser,iam:PutUserPolicy,sts:AssumeRole,ec2:TerminateInstances'; document.getElementById('test-errors').value='None,None,None,None'; }
+  else if(name.includes('exfil')){ document.getElementById('test-events').value='s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject'; document.getElementById('test-errors').value='None,None,None,None,None,None,None,None,None,None,None,None'; }
+  else if(name.includes('denied')){ document.getElementById('test-events').value='s3:GetObject,iam:ListUsers,iam:GetUser'; document.getElementById('test-errors').value='AccessDenied,AccessDenied,AccessDenied'; }
+  else if(name.includes('infra')||name.includes('destruct')){ document.getElementById('test-events').value='ec2:TerminateInstances,s3:DeleteBucket'; document.getElementById('test-errors').value='None,None'; }
+  else { document.getElementById('test-events').value='ec2:DescribeInstances,s3:GetObject'; document.getElementById('test-errors').value='None,None'; }
+  openModal('modal-test');
+}
+
+async function runPolicyTest(){
+  const user = document.getElementById('test-user').value.trim()||'test-user';
+  const events = document.getElementById('test-events').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const errors = document.getElementById('test-errors').value.split(',').map(s=>s.trim()).filter(Boolean);
+  if(!events.length){ alert('Enter at least one event.'); return; }
+  const btn = document.getElementById('test-run-btn');
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>&nbsp;Testing...';
+  try {
+    const res = await fetch(API+'/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user,events,error_codes:errors.length?errors:null})});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const data = await res.json();
+    const ml=parseFloat(data.ml_score||0), rule=parseFloat(data.rule_score||0), final=parseFloat(data.final_score||0);
+    const level=data.risk_level||'LOW', sc=scoreColor(final), rules=data.triggered_rules||[];
+    document.getElementById('test-result').classList.add('show');
+    const sv=document.getElementById('test-score-val'); sv.textContent=final.toFixed(3); sv.style.color=sc;
+    const badge=document.getElementById('test-badge'); badge.textContent=level; badge.className='rc-badge '+level;
+    document.getElementById('t-bar-ml').style.width=(ml*100)+'%'; document.getElementById('t-val-ml').textContent=ml.toFixed(3);
+    document.getElementById('t-bar-rule').style.width=(rule*100)+'%'; document.getElementById('t-val-rule').textContent=rule.toFixed(3);
+    document.getElementById('t-bar-final').style.width=(final*100)+'%'; document.getElementById('t-bar-final').style.background=sc;
+    document.getElementById('t-val-final').textContent=final.toFixed(3); document.getElementById('t-val-final').style.color=sc;
+    document.getElementById('test-rules-out').innerHTML = rules.length
+      ? '<span style="color:var(--red)">\u26a0 Rules: </span>'+rules.join(' · ')
+      : '<span style="color:var(--green)">✓ No rules triggered · ML-driven</span>';
+  } catch(e){ alert('Error: '+e.message); }
+  finally{ btn.disabled=false; btn.innerHTML='&#9658; Run Test'; }
+}
+
+function openDisablePolicy(idx, e){
+  e.stopPropagation(); activeToggleIdx = idx;
+  const p = policyState[idx];
+  document.getElementById('disable-msg').textContent = (p.enabled?'Disable':'Enable')+' policy: "'+p.name+'"?';
+  openModal('modal-disable');
+}
+
+function confirmToggle(){
+  if(activeToggleIdx===null) return;
+  const p = policyState[activeToggleIdx];
+  p.enabled = !p.enabled;
+  const item = p.el;
+  item.querySelectorAll('.pol-badge').forEach(b => {
+    if(b.textContent==='ENABLED'||b.textContent==='DISABLED'){
+      b.textContent = p.enabled?'ENABLED':'DISABLED';
+      b.className = 'pol-badge '+(p.enabled?'enabled':'disabled');
+    }
+  });
+  const toggleBtn = item.querySelector('.pol-btn.danger, .pol-btn.enable-btn');
+  if(toggleBtn){
+    toggleBtn.textContent = p.enabled?'Disable':'Enable';
+    toggleBtn.className = p.enabled?'pol-btn danger':'pol-btn enable-btn';
+    toggleBtn.onclick = (e) => { e.stopPropagation(); openDisablePolicy(activeToggleIdx, e); };
+  }
+  const desc=item.querySelector('.pol-desc'); if(desc) desc.style.opacity=p.enabled?'1':'0.4';
+  const rl=item.querySelector('.pol-rule-list'); if(rl) rl.style.opacity=p.enabled?'1':'0.4';
+  const ac=Object.values(policyState).filter(x=>x.enabled).length;
+  const ce=document.querySelector('.pol-stat span'); if(ce) ce.textContent=ac;
+  closeModal('modal-disable');
+  showToast('Policy "'+ p.name +'" '+(p.enabled?'enabled':'disabled')+'.');
+}
+
+document.querySelectorAll('.policy-item').forEach((item, idx) => {
+  item.querySelectorAll('.pol-btn').forEach(btn => {
+    const txt = btn.textContent.trim();
+    if(txt==='Edit Rules') btn.onclick=(e)=>{e.stopPropagation();openEditPolicy(idx,e);};
+    else if(txt==='Test Policy') btn.onclick=(e)=>{e.stopPropagation();openTestPolicy(idx,e);};
+    else if(txt==='Disable') btn.onclick=(e)=>{e.stopPropagation();openDisablePolicy(idx,e);};
+  });
+});
+
+function showToast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--surface);border:1px solid var(--green);color:var(--green);font-family:var(--font-mono);font-size:11px;padding:10px 18px;z-index:9999;letter-spacing:.5px;opacity:0;transition:opacity .3s;pointer-events:none;'; document.body.appendChild(t); }
+  t.textContent='✓ '+msg; t.style.opacity='1';
+  clearTimeout(t._timer); t._timer=setTimeout(()=>{t.style.opacity='0';},3000);
+}
+
+
+// Restore stats + gauge on page load
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    fetch('/stats').then(function(r){return r.json();}).then(function(s){
+      counts.total=s.total||0;counts.HIGH=s.HIGH||0;counts.MEDIUM=s.MEDIUM||0;counts.LOW=s.LOW||0;
+      document.getElementById('s-total').textContent=counts.total;
+      document.getElementById('s-high').textContent=counts.HIGH;
+      document.getElementById('s-med').textContent=counts.MEDIUM;
+      document.getElementById('s-low').textContent=counts.LOW;
+      updateDistBars();
+      if(s.scores&&s.scores.length){sessionScores=s.scores.slice();updateGauge(s.scores.reduce(function(a,b){return a+b;},0)/s.scores.length);}
+    }).catch(function(){});
+  },1000);
+});
+
+</script>

@@ -1,0 +1,11 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+models/lstm_model.pt
+data/history.json
+data/stats.json
+data/*.npy
+*.zip
+*.gz
+.env
