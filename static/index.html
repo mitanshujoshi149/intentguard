@@ -867,8 +867,8 @@ const PRESETS = {
   high2:{user:'attacker', events:'iam:CreateUser,iam:PutUserPolicy,sts:AssumeRole,ec2:TerminateInstances',           errors:'None,None,None,None'},
   high3:{user:'mallory',  events:'s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject,s3:GetObject', errors:'None,None,None,None,None,None,None,None,None,None,None,None'},
   med1: {user:'charlie',  events:'s3:GetObject,s3:GetObject,sts:AssumeRole,ec2:DescribeInstances',                   errors:'None,None,AccessDenied,None'},
-  low1: {user:'alice',    events:'ec2:DescribeInstances,s3:GetObject,s3:PutObject,logs:GetLogEvents',                errors:'None,None,None,None'},
-  low2: {user:'bob',      events:'s3:GetObject,s3:GetObject,cloudwatch:GetMetricData',                               errors:'None,None,None'},
+  low1: {user:'alice',    events:'ec2:DescribeInstances,s3:GetObject,lambda:InvokeFunction,ec2:DescribeInstances,s3:ListBucket,rds:DescribeDBInstances,ec2:DescribeInstances,s3:GetObject,lambda:InvokeFunction,iam:ListUsers,s3:ListBucket,ec2:DescribeInstances',  errors:'None,None,None,None,None,None,None,None,None,None,None,None'},
+  low2: {user:'bob',      events:'s3:ListBucket,s3:GetObject,rds:DescribeDBInstances,ec2:DescribeInstances,lambda:InvokeFunction,s3:GetObject,iam:ListUsers,s3:ListBucket,rds:DescribeDBInstances,ec2:DescribeInstances,s3:GetObject,lambda:InvokeFunction', errors:'None,None,None,None,None,None,None,None,None,None,None,None'},
 };
 
 function applyPreset(k){ const p=PRESETS[k]; if(!p)return; document.getElementById('f-user').value=p.user; document.getElementById('f-events').value=p.events; document.getElementById('f-errors').value=p.errors; switchTab('live'); }

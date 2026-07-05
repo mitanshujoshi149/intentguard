@@ -6,22 +6,13 @@ from pydantic import BaseModel, Field
 import risk_engine
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="IntentGuard", description="Insider-threat detection", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 # CORS — allows browser to call API from any origin
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# Serve dashboard at root URL
-import os
 os.makedirs("static", exist_ok=True)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -100,7 +91,7 @@ import json as _pjson
 from pathlib import Path as _PPath
 from datetime import datetime as _dt
 
-_DATA_DIR    = _PPath('/home/ubuntu/intentguard/data')
+_DATA_DIR    = _PPath(__file__).parent / 'data'
 _HIST_FILE   = _DATA_DIR / 'history.json'
 _POL_FILE    = _DATA_DIR / 'policies.json'
 _STATS_FILE  = _DATA_DIR / 'stats.json'
